@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="opencc.data.js" defer></script>
+    <script src="opencc.js" defer></script>
+    <title>施工品質檢查-AI生成式輔助系統 - 雙模版本</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 85%;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: visible;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,.3);
+        }
+
+        .header p { font-size: 1.1rem; opacity: .9; }
+
+        .type-selector {
+            background: rgba(255,255,255,.2);
+            border-radius: 15px;
+            padding: 20px; margin: 20px 0;
+        }
+
+        .type-buttons {
+            display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+        }
+
+        .type-btn {
+            background: rgba(255,255,255,.9);
+            color: #1e3c72; border: none; padding: 10px 20px;
+            border-radius: 25px; cursor: pointer; font-weight: bold;
+            transition: all .3s ease;
+        }
+        .type-btn:hover { background: rgb(228,237,186); box-shadow: 0 5px 15px rgba(0,0,0,.2); }
+        .type-btn.active { background: #28a745; color: #fff; }
+
+        .add-type-section { background: rgba(255,255,255,.1); border-radius: 10px; padding: 15px; margin-top: 15px; }
+
+        .checklist-upload { display: flex; gap: 10px; align-items: center; margin-top: 10px; }
+
+        .checklist-input {
+            flex: 1; padding: 8px; border: 1px solid rgba(255,255,255,.3); border-radius: 5px;
+            --progress: 0%; --progress-color: rgba(23,162,184,.35);
+            background: linear-gradient(90deg,
+                    var(--progress-color) 0%,
+                    var(--progress-color) var(--progress),
+                    rgba(255,255,255,.08) var(--progress),
+                    rgba(255,255,255,.05) 100%);
+            color: white; transition: background .3s ease, color .3s ease;
+        }
+        .checklist-input::placeholder { color: rgba(255,255,255,.7); }
+        .checklist-input.checklist-progress-active { font-weight: 600; color: #0d1b2a; position: relative; overflow: hidden; }
+        .checklist-input.checklist-progress-error { color: #fff; }
+        .checklist-input:disabled { cursor: progress; }
+
+        .upload-checklist-btn {
+            background: #17a2b8; color: white; border: none; padding: 8px 15px;
+            border-radius: 5px; cursor: pointer; font-weight: bold; transition: background .3s ease, opacity .3s ease;
+        }
+        .upload-checklist-btn:disabled { background: #6c757d; cursor: not-allowed; opacity: .7; }
+
+        .type-btn-container { position: relative; display: inline-block; }
+        .type-btn-actions { position: absolute; top: -8px; right: -8px; display:flex; gap: 2px; }
+        .type-btn-container:hover .type-btn-actions { display: flex; }
+        .action-btn { width: 20px; height: 20px; border-radius: 50%; border: none; cursor: pointer; font-size: 12px; display:flex; align-items:center; justify-content:center; }
+        .edit-btn { background: #ffc107; color: #212529; }
+        .delete-btn { background: #dc3545; color: #fff; }
+        .action-btn:hover { transform: scale(1.1); }
+
+        .edit-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,.7); z-index:1000; }
+        .edit-modal-content { position:absolute; top:50%; left:50%; transform: translate(-50%,-50%); background:#fff; border-radius:15px; padding:30px; max-width:800px; max-height:80vh; overflow-y:auto; box-shadow: 0 20px 40px rgba(0,0,0,.3); }
+        .edit-modal h3 { margin-bottom:20px; color:#2c3e50; }
+        .edit-item { background:#f8f9fa; border-radius:10px; padding:15px; margin-bottom:15px; border:1px solid #dee2e6; }
+        .edit-item-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+        .edit-item input, .edit-item textarea { width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; margin-bottom:10px; }
+        .edit-item textarea { resize: vertical; min-height:60px; }
+        .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+        .modal-btn { padding:10px 20px; border:none; border-radius:5px; cursor:pointer; font-weight:bold; }
+        .save-btn { background:#28a745; color:#fff; }
+        .cancel-btn { background:#6c757d; color:#fff; }
+        .add-item-btn { background:#007bff; color:#fff; width:100%; padding:10px; margin-bottom:15px; }
+
+        @media (max-width:768px){
+            .main-content{ gap:20px; padding:20px; }
+            .config-container{ flex-direction:column; }
+            .upload-section{ flex:1 1 100%; }
+            .preview-section{ min-height:200px; }
+            .preview-image{ max-height:40vh; }
+            .type-buttons{ justify-content:flex-start; flex-wrap:wrap; }
+            .type-btn{ font-size:.9rem; padding:8px 15px; }
+            .edit-modal-content{ max-width:95%; padding:20px; }
+        }
+
+        .api-section { background:#1e025746; border:1px solid #ffc107; border-radius:10px; padding:15px 20px; transition: all .3s ease; flex: 1 1 320px; }
+        .api-section.collapsed{ padding:10px 20px; }
+        .api-title{ font-size:1.2rem; color:#9ce94b; margin-bottom:0; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:space-between; }
+        .api-title:hover{ color:#b22222; background:linear-gradient(135deg,#fbe3e3 0%,#f9dede 100%); box-shadow:0 0 8px rgba(178,34,34,.2); }
+        .api-toggle{ font-size:1rem; margin-left:10px; transition: transform .3s ease; }
+        .api-content{ max-height:200px; overflow:hidden; transition:max-height .3s ease, margin-top .3s ease; margin-top:15px; }
+        .api-content.collapsed{ max-height:0; margin-top:0; }
+        .api-input-group{ display:flex; gap:10px; align-items:center; }
+        .api-input{ flex:1; padding:10px; border:1px solid #ddd; border-radius:5px; font-size:.9rem; }
+        .api-save-btn{ background:#28a745; color:#fff; border:none; padding:10px 20px; border-radius:5px; cursor:pointer; font-weight:bold; }
+        .api-status{ margin-top:10px; padding:8px; border-radius:5px; font-size:.9rem; }
+        .api-status.success{ background:#d4edda; color:#155724; border:1px solid #c3e6cb; }
+        .api-status.error{ background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; }
+
+        .main-content{ display:flex; flex-direction:column; gap:30px; padding:30px; align-items:stretch; }
+
+        .upload-section{
+            display:flex; flex-direction:row; justify-content:space-between; align-items:center;
+            background:#f8f9fa; border-radius:15px; padding:25px; border:2px dashed #dee2e6;
+            transition:all .3s ease; gap:20px; max-height:none; position:static;
+        }
+        .upload-area{ flex:1; text-align:center; padding:40px 20px; cursor:pointer; border-radius:10px; transition:all .3s ease; background:rgba(255,255,255,.6); }
+        .upload-area:hover{ background: rgba(0,123,255,.1); }
+
+        .preview-section{ flex:1; display:flex; align-items:center; justify-content:center; min-height:250px; }
+        .preview-section.show{ display:flex; }
+        .preview-image{ max-width:100%; max-height:400px; border-radius:10px; box-shadow:0 5px 15px rgba(0,0,0,.2); object-fit:contain; }
+
+        .analysis-section{ background:#fff; border-radius:15px; padding:25px; box-shadow:0 5px 15px rgba(0,0,0,.1); }
+
+        .upload-icon{ font-size:3rem; color:#6c757d; margin-bottom:15px; }
+        .upload-text{ font-size:1.2rem; color:#495057; margin-bottom:10px; }
+
+        #fileInput{ display:none; }
+
+        .model-selector{ display:flex; align-items:center; gap:10px; margin-bottom:15px; flex-wrap:wrap; }
+        .checklist-model-toggle{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+        .checklist-model-toggle .toggle-label{ font-weight:bold; color:#ffffff; }
+
+        .model-label{ font-weight:bold; color:#2c3e50; }
+        .model-btn{ background:rgba(255,255,255,.85); border:1px solid #d1d9ff; border-radius:20px; padding:6px 16px; cursor:pointer; font-size:.9rem; color:#314c83; transition:all .3s ease; }
+        .model-btn:hover{ background: rgba(103,126,234,.15); box-shadow:0 4px 10px rgba(49,76,131,.2); }
+        .model-btn.active{ background: linear-gradient(135deg,#28a745 0%,#20c997 100%); color:#fff; border-color:transparent; box-shadow:0 8px 18px rgba(32,201,151,.3); }
+        .model-btn:disabled{ background: rgba(200,205,220,.6); color: rgba(49,76,131,.4); border-color: rgba(209,217,255,.5); cursor:not-allowed; box-shadow:none; }
+
+        .analysis-title{ font-size:1.5rem; color:#2c3e50; margin-bottom:20px; padding-bottom:10px; border-bottom:2px solid #3498db; }
+
+        .inspection-panel{ margin-bottom:20px; border:1px solid #dee2e6; border-radius:12px; padding:12px 16px; background:rgba(255,255,255,.9); box-shadow:0 6px 20px rgba(0,0,0,.08); }
+        .inspect-toggle-row{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+        .inspect-title{ font-weight:600; color:#1e3c72; }
+        .inspect-toggle-row button{ border:1px solid #1e3c72; color:#1e3c72; background:#fff; border-radius:20px; padding:6px 14px; font-size:.85rem; cursor:pointer; transition:all .2s ease; }
+        .inspect-toggle-row button:hover{ background:#1e3c72; color:#fff; }
+        .inspection-panel.collapsed .inspection-item{ display:none; }
+        .inspection-items{ margin-bottom:10px; }
+        .inspection-item{ background:#f8f9fa; border-radius:10px; padding:15px; margin-bottom:10px; border-left:4px solid #6c757d; transition:all .3s ease; }
+        .inspection-item:hover{ background:#e6e5e9; transform: translateX(5px); }
+        .inspection-item.selected{ border-left-color:#28a745; background:#d4edda; }
+        .inspection-item.defect{ border-left-color:#dc3545; background:#f8d7da; }
+        .item-name{ font-weight:bold; color:#2c3e50; }
+        .item-standard{ font-size:.9rem; color:#6c757d; line-height:1.4; margin-top:6px; }
+
+        /* 檢查項目編號徽章 */
+        .item-head{
+          display:flex; align-items:center; gap:10px; margin-bottom:6px;
+        }
+        .item-index{
+          min-width:28px; height:28px; line-height:28px; text-align:center;
+          border-radius:999px; font-weight:700; font-size:.9rem;
+          background:#e9ecef; color:#495057; border:1px solid #dee2e6;
+          flex:0 0 28px;
+        }
+        .inspection-item.defect .item-index{
+          background:#f8d7da; color:#721c24; border-color:#f5c6cb;
+        }
+        .inspection-item.selected .item-index{
+          background:#d4edda; color:#155724; border-color:#c3e6cb;
+        }
+
+        .analyze-btn{
+            background: linear-gradient(135deg,#28a745 0%,#20c997 100%); color:#fff;
+            border:none; padding:15px 30px; border-radius:25px; font-size:1.1rem; font-weight:bold;
+            cursor:pointer; transition: all .3s ease; width:100%; margin-top:20px;
+        }
+        .analyze-btn:hover{ transform: translateY(-2px); box-shadow:0 10px 20px rgba(40,167,69,.3); }
+        .analyze-btn:disabled{ background:#6c757d; cursor:not-allowed; transform:none; box-shadow:none; }
+
+        .loading{ display:none; text-align:center; padding:20px; }
+        .loading-text{ font-weight:600; letter-spacing:.08em; color: rgba(12,49,105,.9); display:inline-flex; align-items:center; gap:6px; }
+        .loading-text .loading-icon{ font-size:1.2rem; animation: loadingIconSpin 1.4s linear infinite; }
+        @keyframes loadingIconSpin{ 0%{transform:rotate(0)}100%{transform:rotate(360deg)} }
+        .spinner{ border:3px solid #f3f3f3; border-top:3px solid #3498db; border-radius:50%; width:40px; height:40px; animation: spin 1s linear infinite; margin:0 auto 15px; }
+        @keyframes spin{ 0%{transform:rotate(0)}100%{transform:rotate(360deg)} }
+
+        /* 新增檢查類型用的小型旋轉圈圈（新增） */
+        .spinner-mini{
+          display:none;
+          width:16px; height:16px;
+          border:3px solid rgba(255,255,255,.35);
+          border-top-color:#17a2b8;
+          border-radius:50%;
+          animation: spin 1s linear infinite;
+          vertical-align: middle;
+          margin-left:8px;
+        }
+
+        .ai-badge{
+            background: linear-gradient(135deg,#ff6b6b 0%,#ee5a24 100%);
+            color:#fff; padding:5px 15px; border-radius:20px; font-size:.8rem; font-weight:bold; display:inline-block; margin-left:10px;
+        }
+
+        /* 分析結果強化樣式 */
+        .result-section{ display:none; margin-top:25px; padding:20px; background: linear-gradient(135deg,#fff3cd 0%,#ffeaa7 100%); border-radius:15px; border:1px solid #ffc107; }
+        .result-title{ font-size:1.3rem; color:#856404; margin-bottom:15px; font-weight:bold; }
+        .result-content{ color:#333; line-height:1.6; }
+
+        .analysis-list{ list-style:none; padding:0; margin:20px 0 0 0; display:flex; flex-direction:column; gap:12px; }
+        .analysis-item{ display:flex; gap:15px; align-items:flex-start; background: rgba(240,248,255,.65); border-left:4px solid #2196f3; border-radius:12px; padding:15px 18px; box-shadow: 0 6px 12px rgba(0,0,0,.06); }
+        .analysis-item.analysis-primary{ background: rgba(227,242,253,.95); }
+        .analysis-item.analysis-warning{ background: rgba(255,243,205,.9); border-left-color:#ffc107; }
+        .analysis-item.analysis-success{ background: rgba(232,245,232,.9); border-left-color:#4caf50; }
+        .analysis-item.analysis-accent{ background: rgba(255,243,224,.9); border-left-color:#ff9800; }
+        .analysis-icon{ font-size:1.6rem; line-height:1; }
+        .analysis-content{ flex:1; }
+        .analysis-title-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+        .analysis-title{ font-weight:700; margin-bottom:8px; color:#1e3c72; font-size:1.05rem; }
+        .pill{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:.75rem; margin-left:6px; }
+        .pill-high{ background:#dc3545; color:#fff; }
+        .pill-med{ background:#ffc107; color:#212529; }
+        .pill-low{ background:#28a745; color:#fff; }
+
+        .mini-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:10px; margin-top:6px; }
+        .mini-card{ background:#fff; border:1px dashed #e0e0e0; border-radius:10px; padding:10px; font-size:.92rem; }
+
+        .collapse{ border:none; background:transparent; cursor:pointer; font-size:.9rem; color:#0d6efd; }
+        .collapsed .collapse-icon{ transform: rotate(-90deg); }
+        .collapse-icon{ display:inline-block; transition: transform .2s ease; }
+        .standard-check-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:12px; }
+        .standard-check-item{ display:flex; gap:12px; align-items:flex-start; background:#ffffff; border:1px dashed rgba(30,136,229,.2); border-radius:12px; padding:12px 14px; box-shadow: inset 0 0 0 1px rgba(30,136,229,.05); }
+        .standard-check-item .std-index{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; min-width:30px; border-radius:50%; background:#1e88e5; color:#fff; font-weight:600; font-size:.95rem; }
+        .std-body{ flex:1; display:flex; flex-direction:column; gap:6px; }
+        .std-name{ font-weight:600; color:#1e3c72; display:flex; align-items:center; gap:8px; }
+        .std-icon{ font-size:1.1rem; }
+        .std-text{ font-size:.92rem; color:#374151; line-height:1.55; }
+        .analysis-text.analysis-html{ padding:0; }
+        .upload-meta{ margin-top:8px; color:rgba(255,255,255,.85); font-size:.9rem; display:flex; flex-direction:column; gap:4px; }
+        .upload-meta-row{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+        .upload-meta-label{ color:rgba(255,255,255,.6); font-weight:600; }
+        .upload-meta-value{ font-weight:500; }
+        .analysis-duration{ margin-left:8px; color:#000; font-weight:600; font-size:.95rem; display:inline-block; }
+
+        .detail-block{ background:#fff; border:1px solid #eee; border-radius:12px; padding:14px; margin-top:10px; }
+        .detail-block h4{ margin-bottom:8px; color:#1e3c72; font-size:1rem; }
+
+        @media (max-width:768px){
+            .analysis-title-row{ flex-direction:column; align-items:flex-start; gap:6px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>營建工程施工品質檢查輔助系統<span class="ai-badge">AI深度辨識分析</span></h1>
+        <p>使用AI模型，依據檢查項目與檢查標準智能分析現場施工照片</p>
+
+        <div class="type-selector">
+            <h3 style="color: white; margin-bottom: 15px; text-align: center;"> 選擇檢查類型</h3>
+            <div class="type-buttons" id="typeButtons"></div>
+
+            <div class="add-type-section">
+                <div style="color: white; margin-bottom: 10px; font-weight: bold;">新增檢查類型</div>
+                <div class="model-toggle checklist-model-toggle">
+                    <span class="toggle-label">解析模型：</span>
+                    <button type="button" class="model-btn active" data-checklist-provider="cloud" onclick="selectChecklistProvider('cloud')">☁️ Claude 雲端</button>
+                    <button type="button" class="model-btn" data-checklist-provider="local" onclick="selectChecklistProvider('local')">💻 Ollama 本地</button>
+                </div>
+                <div class="checklist-upload">
+                    <input type="text" class="checklist-input" id="checklistName" placeholder="可輸入自訂檢查類型名稱（例如：混凝土澆，但只能上傳影像檔）">
+                    <input type="file" id="checklistInput" accept="image/*" style="display: none;">
+                    <button class="upload-checklist-btn" id="uploadChecklistBtn" onclick="triggerChecklistUpload()">上傳檢查表</button>
+                </div>
+                <div id="checklistStatus" style="margin-top: 10px; font-size: 0.9rem;"></div>
+                <!-- 小型旋轉圈圈（新增檢查類型流程用） -->
+                <span id="checklistSpinner" class="spinner-mini" aria-label="loading"></span>
+            </div>
+            <div class="api-section" id="apiSection">
+                <div class="api-title" style="cursor: default;">Claude.ai API 設定</div>
+                <div class="api-content" id="apiContent" style="margin-top: 15px;">
+                    <div class="api-input-group">
+                        <!-- 5) JS：放寬 API Key 驗證規則（避免誤殺） 這一段不要修改 -->
+                        <input type="password" id="apiKey" class="api-input" placeholder="請輸入您的Claude API密鑰 (sk-ant-api03-...)" value="">
+                        <button class="api-save-btn" onclick="saveApiKey()">儲存</button>
+                    </div>
+                    <div id="apiStatus" class="api-status" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="config-container">
+            <div class="upload-section">
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">📷</div>
+                    <div class="upload-text">點擊上傳照片</div>
+                    <div class="upload-meta">
+                        <div class="upload-meta-row">
+                            <span class="upload-meta-label">檔名：</span>
+                            <span class="upload-meta-value" id="uploadFileName">尚未選取</span>
+                        </div>
+                        <div class="upload-meta-row">
+                            <span class="upload-meta-label">原始大小：</span>
+                            <span class="upload-meta-value" id="uploadOriginalSize">-</span>
+                        </div>
+                        <div class="upload-meta-row">
+                            <span class="upload-meta-label">壓縮後大小：</span>
+                            <span class="upload-meta-value" id="uploadFileSize">-</span>
+                        </div>
+                    </div>
+                </div>
+                <input type="file" id="fileInput" accept="image/*">
+                <div class="preview-section" id="previewSection">
+                    <img id="previewImage" class="preview-image" alt="預覽圖片">
+                </div>
+            </div>
+        </div>
+
+        <div class="analysis-section">
+            <div class="analysis-title" id="analysisTitle">📋 檢查項目 <span style="font-size: 0.8rem; color: #6c757d;">• AI將自動識別相關項目</span></div>
+
+            <div class="model-selector" id="modelSelector">
+                <span class="model-label">分析模型：</span>
+                <button type="button" class="model-btn active" data-provider="cloud" onclick="selectAnalysisProvider('cloud')">☁️ Claude 雲端</button>
+                <button type="button" class="model-btn" data-provider="local" onclick="selectAnalysisProvider('local')">💻 Ollama 本機</button>
+            </div>
+
+            <div class="inspection-panel" id="inspectionPanel">
+                <div class="inspect-toggle-row">
+                    <div class="inspect-title">檢查項目清單</div>
+                </div>
+                <div class="inspection-items" id="inspectionItems"></div>
+            </div>
+
+            <button class="analyze-btn" id="analyzeBtn" onclick="analyzeImageWithAI()" disabled>🔍 AI缺失檢查</button>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <div class="loading-text">
+                    <span class="loading-icon">🔄</span>
+                    <span id="loadingText">正在解析檢查表...</span>
+                </div>
+            </div>
+
+            <div class="result-section" id="resultSection">
+                <div class="result-title">
+                    AI分析結果
+                    <span class="analysis-duration" id="analysisDuration"></span>
+                </div>
+                <div class="result-content" id="resultContent"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 編輯模態視窗 -->
+<div id="editModal" class="edit-modal">
+    <div class="edit-modal-content">
+        <h3 id="editModalTitle">編輯檢查項目</h3>
+        <button class="modal-btn add-item-btn" onclick="addNewItem()">➕ 新增檢查項目</button>
+        <div id="editItemsContainer"></div>
+        <div class="modal-actions">
+            <button class="modal-btn save-btn" onclick="saveEditedItems()">💾 儲存</button>
+            <button class="modal-btn cancel-btn" onclick="closeEditModal()">❌ 取消</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/* -------------------- 狀態與變數 -------------------- */
+let uploadedImage = null;
+let apiKey = null;
+let currentInspectionType = 'rebar';
+let inspectionTypesData = null;
+let analysisProvider = 'cloud';
+let lastAnalysisProvider = analysisProvider;
+let checklistProvider = 'cloud';
+const uploadMetaElements = { name: null, original: null, size: null };
+const checklistProgress = { input: null, originalValue: '', active: false, timer: null };
+let loadingTextTimer = null;
+let loadingBaseText = '正在解析檢查表';
+
+/* -------------------- 進度條：新增檢查類型 -------------------- */
+function beginChecklistProgress(message, percent){
+    const input = checklistProgress.input; if(!input) return;
+    if(!checklistProgress.active){ checklistProgress.originalValue = input.value; checklistProgress.active = true; }
+    input.disabled = true;
+    input.classList.add('checklist-progress-active');
+    updateChecklistProgress(message, percent);
+}
+function updateChecklistProgress(message, percent){
+    const input = checklistProgress.input; if(!input) return;
+    input.value = message;
+    const clamped = Math.max(0, Math.min(100, percent));
+    input.dataset.progress = clamped;
+    input.style.setProperty('--progress', `${clamped}%`);
+    input.style.setProperty('--progress-color', 'rgba(23, 162, 184, 0.6)');
+}
+function completeChecklistProgress(message){
+    const input = checklistProgress.input; if(!input) return;
+    input.value = message;
+    input.dataset.progress = 100;
+    input.style.setProperty('--progress', '100%');
+    input.style.setProperty('--progress-color', 'rgba(40, 167, 69, 0.75)');
+    clearTimeout(checklistProgress.timer);
+    checklistProgress.timer = setTimeout(()=>resetChecklistProgress(true), 1500);
+}
+function failChecklistProgress(message){
+    const input = checklistProgress.input; if(!input) return;
+    input.value = message;
+    input.disabled = false;
+    input.classList.remove('checklist-progress-active');
+    input.classList.add('checklist-progress-error');
+    input.dataset.progress = 100;
+    input.style.setProperty('--progress', '100%');
+    input.style.setProperty('--progress-color', 'rgba(220, 53, 69, 0.75)');
+    clearTimeout(checklistProgress.timer);
+    checklistProgress.timer = setTimeout(()=>resetChecklistProgress(false), 4500);
+}
+function resetChecklistProgress(clearValue){
+    const input = checklistProgress.input; if(!input) return;
+    clearTimeout(checklistProgress.timer);
+    input.disabled = false;
+    input.classList.remove('checklist-progress-active','checklist-progress-error');
+    input.style.removeProperty('--progress'); input.style.removeProperty('--progress-color');
+    delete input.dataset.progress;
+    if(clearValue){ input.value=''; checklistProgress.originalValue=''; } else { input.value = checklistProgress.originalValue||''; }
+    checklistProgress.active = false;
+}
+
+/* 小型圈圈顯示/隱藏 */
+function showChecklistSpinner() {
+  const s = document.getElementById('checklistSpinner');
+  if (s) s.style.display = 'inline-block';
+}
+function hideChecklistSpinner() {
+  const s = document.getElementById('checklistSpinner');
+  if (s) s.style.display = 'none';
+}
+
+function triggerChecklistUpload(){
+    const btn = document.getElementById('uploadChecklistBtn');
+    if(!btn || btn.disabled) return;
+    const input = document.getElementById('checklistInput');
+    input.value = '';
+    input.click();
+}
+
+function setUploadButtonState(disabled, labelText){
+    const btn = document.getElementById('uploadChecklistBtn'); if(!btn) return;
+    btn.disabled = !!disabled;
+    btn.textContent = labelText || '上傳檢查表';
+}
+
+/* -------------------- Loading 文字動畫 -------------------- */
+function startLoadingTextAnimation(baseText){
+    const el = document.getElementById('loadingText'); if(!el) return;
+    stopLoadingTextAnimation(); loadingBaseText = baseText || '正在解析檢查表';
+    const frames = []; const chars = [...loadingBaseText];
+    for(let i=1;i<=chars.length;i++){ frames.push(chars.slice(0,i).join('')); }
+    frames.push(`${loadingBaseText}.`); frames.push(`${loadingBaseText}..`); frames.push(`${loadingBaseText}...`);
+    let idx=0; el.textContent = frames[0];
+    loadingTextTimer = setInterval(()=>{ idx = (idx+1)%frames.length; el.textContent = frames[idx]; },150);
+}
+function stopLoadingTextAnimation(finalText){
+    if(loadingTextTimer){ clearInterval(loadingTextTimer); loadingTextTimer=null; }
+    const el = document.getElementById('loadingText'); if(!el) return;
+    el.textContent = finalText || loadingBaseText;
+}
+
+/* -------------------- 安全/驗證工具 -------------------- */
+function sanitizeHTML(str){ const div=document.createElement('div'); div.textContent=str; return div.innerHTML; }
+function splitStandardCheckText(text){
+    if(!text) return [];
+    return convertAIText(text)
+        .replace(/\r/g, '\n')
+        .split(/\n+/)
+        .map(line=>line.trim())
+        .filter(Boolean)
+        .map(line=>line
+            .replace(/^\d+\s*[\.\)\-、：:]+/, '')
+            .replace(/^[\-\u2022\u2023\u25AA\u25CF\u30FB•●▪‧※\s]+/, '')
+            .trim()
+        )
+        .filter(Boolean);
+}
+function normalizeForMatch(str, options = {}){
+    const { convert = true } = options;
+    const base = convert ? toTraditional(String(str || '')) : String(str || '');
+    return base.toLowerCase().replace(/\s+/g,'');
+}
+function buildStandardCheckHTML(aiText, defectsText){
+    const currentType = inspectionTypesData?.inspectionTypes?.[currentInspectionType];
+    const items = Array.isArray(currentType?.items) ? currentType.items : [];
+    if(!items.length){
+        return { html: sanitizeHTML(convertAIText(aiText || '')), matchedItems: [] };
+    }
+    const aiEntries = splitStandardCheckText(aiText);
+    const defectsProcessed = convertAIText(defectsText || '');
+    const normalizedDefects = normalizeForMatch(defectsProcessed, { convert:false });
+    const issueKeywords = ['不符','不足','缺失','偏差','超出','超標','超限','過大','過小','裂','破','滲','鬆','漏','未達','不良','剝落','損傷','鬆脫','異常','錯位'];
+
+    const listItems = [];
+    const matchedItems = [];
+    items.forEach((item, idx)=>{
+        const nameTraditional = toTraditional(item.name || `第${idx + 1}項`);
+        const iconTraditional = toTraditional(item.icon || '');
+        const aiDetailRaw = aiEntries[idx] ? aiEntries[idx] : '';
+        const fallbackDetail = item.standard ? toTraditional(item.standard) : '';
+        const normalizedName = normalizeForMatch(nameTraditional, { convert:false });
+        const aiDetailNormalized = normalizeForMatch(aiDetailRaw, { convert:false });
+
+        const hasNameInDefects = normalizedName && normalizedDefects.includes(normalizedName);
+        const hasIssueKeyword = issueKeywords.some(kw=> aiDetailRaw.includes(kw) || (defectsProcessed.includes(kw) && normalizedName && normalizedDefects.includes(normalizedName)));
+
+        if(!hasNameInDefects && !hasIssueKeyword){
+            return;
+        }
+
+        let detailText = aiDetailRaw || fallbackDetail || '';
+        if(aiDetailRaw && fallbackDetail && !aiDetailRaw.includes(fallbackDetail)){
+            detailText = `${aiDetailRaw}\n標準：${fallbackDetail}`;
+        }
+        const detail = sanitizeHTML(detailText).replace(/\n/g, '<br>');
+        const iconHTML = iconTraditional ? `<span class="std-icon">${sanitizeHTML(iconTraditional)}</span>` : '';
+
+        matchedItems.push({
+            rawName: item.name || `第${idx + 1}項`,
+            normalizedName,
+            detailText,
+            standardText: fallbackDetail || ''
+        });
+
+        listItems.push(`<li class="standard-check-item"><span class="std-index">${idx + 1}</span><div class="std-body"><div class="std-name">${iconHTML}${sanitizeHTML(nameTraditional)}</div><div class="std-text">${detail}</div></div></li>`);
+    });
+
+    if(!listItems.length){
+        return {
+            html: `<div class="std-text">${sanitizeHTML('未檢出缺失項目。')}</div>`,
+            matchedItems
+        };
+    }
+
+    return {
+        html: `<ol class="standard-check-list">${listItems.join('')}</ol>`,
+        matchedItems
+    };
+}
+function setUploadMeta(meta = {}){
+    if(meta && Object.prototype.hasOwnProperty.call(meta, 'name') && uploadMetaElements.name){
+        uploadMetaElements.name.textContent = meta.name;
+    }
+    if(meta && Object.prototype.hasOwnProperty.call(meta, 'original') && uploadMetaElements.original){
+        uploadMetaElements.original.textContent = meta.original;
+    }
+    if(meta && Object.prototype.hasOwnProperty.call(meta, 'size') && uploadMetaElements.size){
+        uploadMetaElements.size.textContent = meta.size;
+    }
+}
+function formatBytes(bytes){
+    if(typeof bytes !== 'number' || !Number.isFinite(bytes) || bytes < 0){
+        return '-';
+    }
+    const units = ['B','KB','MB','GB'];
+    let value = bytes;
+    let unitIndex = 0;
+    while(value >= 1024 && unitIndex < units.length - 1){
+        value /= 1024;
+        unitIndex++;
+    }
+    const decimals = value < 10 && unitIndex > 0 ? 2 : value < 100 && unitIndex > 0 ? 1 : 0;
+    return `${value.toFixed(decimals)} ${units[unitIndex]}`;
+}
+function getMimeFromDataUrl(dataUrl){
+    const match = /^data:([^;]+);/i.exec(dataUrl || '');
+    return match ? match[1] : '';
+}
+function dataUrlToBlob(dataUrl){
+    const parts = String(dataUrl || '').split(',');
+    if(parts.length < 2){ throw new Error('無法解析影像資料'); }
+    const mimeMatch = parts[0].match(/data:([^;]+);/i);
+    const mimeType = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+    const binary = atob(parts[1]);
+    const len = binary.length;
+    const buffer = new Uint8Array(len);
+    for(let i=0;i<len;i++){ buffer[i] = binary.charCodeAt(i); }
+    return new Blob([buffer], { type: mimeType });
+}
+function createResizedBlob(dataUrl, mimeType, maxWidth){
+    return new Promise((resolve, reject)=>{
+        const img = new Image();
+        img.onload = ()=>{
+            if(!maxWidth || img.width <= maxWidth){
+                try{
+                    resolve(dataUrlToBlob(dataUrl));
+                }catch(error){
+                    reject(error);
+                }
+                return;
+            }
+            const canvas = document.createElement('canvas');
+            const ratio = maxWidth / img.width;
+            canvas.width = maxWidth;
+            canvas.height = Math.round(img.height * ratio);
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const normalized = (mimeType || '').toLowerCase();
+            const outputType = /image\/(png|jpeg|jpg|webp)/.test(normalized) ? mimeType : 'image/jpeg';
+            const quality = outputType && outputType.toLowerCase().includes('jpeg') ? 0.85 : undefined;
+            canvas.toBlob(blob=>{
+                if(blob){
+                    resolve(blob);
+                }else{
+                    reject(new Error('無法產生壓縮影像'));
+                }
+            }, outputType || 'image/jpeg', quality);
+        };
+        img.onerror = ()=>reject(new Error('影像載入失敗'));
+        img.src = dataUrl;
+    });
+}
+async function estimateCompressedSize(dataUrl, file){
+    const mimeType = (file && file.type) || getMimeFromDataUrl(dataUrl) || 'image/jpeg';
+    if(mimeType && mimeType.toLowerCase() === 'image/gif'){
+        return file && typeof file.size === 'number' ? file.size : 0;
+    }
+    try{
+        const blob = await createResizedBlob(dataUrl, mimeType, 1600);
+        return blob.size;
+    }catch(error){
+        console.warn('壓縮大小估算失敗', error);
+        return file && typeof file.size === 'number' ? file.size : 0;
+    }
+}
+function formatDuration(milliseconds){
+    if(typeof milliseconds !== 'number' || !Number.isFinite(milliseconds) || milliseconds < 0){
+        return '0分0秒';
+    }
+    const totalSeconds = Math.round(milliseconds / 1000);
+    const safeSeconds = totalSeconds < 0 ? 0 : totalSeconds;
+    const minutes = Math.floor(safeSeconds / 60);
+    const seconds = safeSeconds % 60;
+    return `${minutes}分${seconds}秒`;
+}
+function updateAnalysisDuration(value){
+    const el = document.getElementById('analysisDuration');
+    if(!el){ return; }
+    if(value === null || typeof value === 'undefined'){
+        el.textContent = '';
+        return;
+    }
+    if(typeof value === 'string'){
+        el.textContent = value;
+        return;
+    }
+    el.textContent = formatDuration(value);
+}
+function validateInput(input, type='text'){
+    if(!input || typeof input!=='string') return false;
+    switch(type){
+        case 'apiKey': return /^sk-ant-api03-[A-Za-z0-9_-]+$/.test(input.trim()); // 不修改
+        case 'filename': return /^[a-zA-Z0-9\u4e00-\u9fff\s\-_\.]+$/.test(input.trim());
+        case 'text': return input.trim().length>0 && input.trim().length<1000;
+        default: return true;
+    }
+}
+
+/* ---- 新增：簡→繁 轉換（避免簡體字出現；涵蓋常見工程用字） ---- */
+let openccConverter = null;
+function toTraditional(s){
+  if(!s) return s;
+  if(typeof OpenCC==='undefined'){
+    console.warn('OpenCC 尚未載入，維持原文字。');
+    return s;
+  }
+  if(openccConverter===null){
+    try{
+      openccConverter = OpenCC.Converter({ from:'cn', to:'tw' });
+    }catch(err){
+      console.warn('OpenCC 初始化失敗，維持原文字：', err);
+      openccConverter = false;
+    }
+  }
+  if(!openccConverter) return s;
+  try{
+    return openccConverter(s);
+  }catch(err){
+    console.warn('OpenCC 轉換失敗，維持原文字：', err);
+    return s;
+  }
+}
+
+function shouldConvertAIText(){
+  return lastAnalysisProvider !== 'cloud';
+}
+
+function convertAIText(value){
+  const str = value == null ? '' : String(value);
+  return shouldConvertAIText() ? toTraditional(str) : str;
+}
+
+/* -------------------- 初始化/載入檢查類型 -------------------- */
+async function loadInspectionTypes(){
+    try{
+        const response = await fetch('/api/inspection-types');
+        inspectionTypesData = await response.json();
+        renderTypeButtons();
+        loadInspectionItems(currentInspectionType);
+    }catch(e){
+        console.error('載入檢查類型失敗:', e);
+        inspectionTypesData = { inspectionTypes: { rebar: { name:'鋼筋工程檢查', items:[] } }, currentType:'rebar' };
+    }
+}
+function renderTypeButtons(){
+    const container = document.getElementById('typeButtons'); container.innerHTML='';
+    Object.keys(inspectionTypesData.inspectionTypes).forEach(typeId=>{
+        const type = inspectionTypesData.inspectionTypes[typeId];
+        const buttonContainer = document.createElement('div'); buttonContainer.className='type-btn-container';
+        const button = document.createElement('button');
+        button.className = `type-btn ${typeId===currentInspectionType?'active':''}`;
+        button.textContent = type.name; button.onclick = ()=>switchInspectionType(typeId);
+        if(typeId!=='rebar'){
+            const actionsDiv = document.createElement('div'); actionsDiv.className='type-btn-actions';
+            const editBtn = document.createElement('button'); editBtn.className='action-btn edit-btn'; editBtn.textContent='✏️'; editBtn.title='編輯檢查類型';
+            editBtn.onclick = (e)=>{ e.stopPropagation(); openEditModal(typeId); };
+            const deleteBtn = document.createElement('button'); deleteBtn.className='action-btn delete-btn'; deleteBtn.textContent='🗑️'; deleteBtn.title='刪除檢查類型';
+            deleteBtn.onclick = (e)=>{ e.stopPropagation(); deleteInspectionType(typeId); };
+            actionsDiv.appendChild(editBtn); actionsDiv.appendChild(deleteBtn); buttonContainer.appendChild(actionsDiv);
+        }
+        buttonContainer.appendChild(button); container.appendChild(buttonContainer);
+    });
+}
+function switchInspectionType(typeId){
+    currentInspectionType = typeId; renderTypeButtons(); loadInspectionItems(typeId);
+    const uploadText = document.querySelector('.upload-text');
+    const typeName = inspectionTypesData.inspectionTypes[typeId].name;
+    uploadText.textContent = `請點選${typeName}照片`;
+    const analysisTitle = document.getElementById('analysisTitle');
+    analysisTitle.innerHTML = `📋 ${typeName} - 檢查項目 <span style="font-size: 0.8rem; color: #6c757d;">• AI將自動識別相關項目</span>`;
+}
+function updateInspectionPanelState(){
+    const panel = document.getElementById('inspectionPanel');
+    if(!panel) return false;
+    panel.classList.remove('collapsed');
+    return false;
+}
+function loadInspectionItems(typeId){
+    updateInspectionPanelState();
+    const container = document.getElementById('inspectionItems');
+    const items = inspectionTypesData.inspectionTypes[typeId].items || [];
+    container.innerHTML='';
+    items.forEach((item, idx)=>{
+        const div = document.createElement('div');
+        div.className='inspection-item';
+        div.dataset.item = item.name;
+        div.innerHTML = `
+            <div class="item-head">
+                <span class="item-index">${idx + 1}</span>
+                <div class="item-name">${(item.icon || '🔎')} ${item.name}</div>
+            </div>
+            <div class="item-standard">${item.standard}</div>
+        `;
+        container.appendChild(div);
+    });
+}
+function toggleInspectionItems(){
+    return false;
+}
+/* -------------------- 模型提供者選擇 -------------------- */
+function updateAnalyzeButton(){
+    const btn = document.getElementById('analyzeBtn');
+    if(!uploadedImage){ btn.disabled = true; btn.textContent='請先上傳照片'; return; }
+    if(analysisProvider==='cloud' && !apiKey){ btn.disabled = true; btn.textContent='請先設定API密鑰'; return; }
+    btn.disabled=false;
+    btn.textContent = analysisProvider==='cloud' ? '🔍 AI缺失檢查（雲端）' : '🔍 AI缺失檢查（本機）';
+}
+function selectAnalysisProvider(provider){
+    const targetBtn = document.querySelector(`[data-provider="${provider}"]`);
+    if(targetBtn && targetBtn.disabled) return;
+    analysisProvider = provider;
+    document.querySelectorAll('[data-provider]').forEach(b=>b.classList.toggle('active', b.dataset.provider===provider));
+    updateAnalyzeButton();
+}
+function selectChecklistProvider(provider){
+    const targetBtn = document.querySelector(`[data-checklist-provider="${provider}"]`);
+    if(targetBtn && targetBtn.disabled) return;
+    checklistProvider = provider;
+    document.querySelectorAll('[data-checklist-provider]').forEach(b=>b.classList.toggle('active', b.dataset.checklistProvider===provider));
+    const statusDiv = document.getElementById('checklistStatus');
+    if(provider==='cloud' && !apiKey){
+        statusDiv.style.color = '#ffc107';
+        statusDiv.textContent = '⚠️ 使用雲端解析前請先設定 Claude API 密鑰';
+    }else if(statusDiv.textContent && statusDiv.style.color==='#ffc107'){
+        statusDiv.textContent='';
+    }
+}
+function updateProviderButtonsState(){
+    const hasApi = !!apiKey;
+    const cloudAnalysisBtn = document.querySelector('[data-provider="cloud"]');
+    const cloudChecklistBtn = document.querySelector('[data-checklist-provider="cloud"]');
+    if(cloudAnalysisBtn){ cloudAnalysisBtn.disabled = !hasApi; if(!hasApi && analysisProvider==='cloud'){ selectAnalysisProvider('local'); } }
+    if(cloudChecklistBtn){ cloudChecklistBtn.disabled = !hasApi; if(!hasApi && checklistProvider==='cloud'){ selectChecklistProvider('local'); } }
+    if(hasApi){
+        const statusDiv = document.getElementById('checklistStatus');
+        if(statusDiv && statusDiv.style.color==='#ffc107'){ statusDiv.textContent=''; statusDiv.style.color='white'; }
+    }
+}
+
+/* -------------------- API Key -------------------- */
+function saveApiKey(){
+    const keyInput = document.getElementById('apiKey');
+    const key = keyInput.value.trim();
+    if(!key){ showApiStatus('❌ 請先設定API密鑰', 'error'); return; }
+    if(!validateInput(key,'apiKey')){ showApiStatus('API密鑰格式不正確，請檢查後重新輸入', 'error'); return; }
+    apiKey = key; showApiStatus('API密鑰已自動載入，可以開始使用AI分析功能', 'success');
+    updateAnalyzeButton(); updateProviderButtonsState();
+}
+function showApiStatus(message, type){
+    const d = document.getElementById('apiStatus'); d.textContent=message; d.className=`api-status ${type}`; d.style.display='block';
+}
+
+/* -------------------- 檔案上傳/預覽 -------------------- */
+document.getElementById('fileInput').addEventListener('change', function(e){
+    const file = e.target.files[0];
+    if(file){
+        const reader = new FileReader();
+        reader.onload = async function(ev){
+            const dataUrl = ev.target.result;
+            uploadedImage = dataUrl;
+            document.getElementById('previewImage').src = uploadedImage;
+            document.getElementById('previewSection').classList.add('show');
+            updateAnalyzeButton();
+
+            const displayName = file.name || '未命名檔案';
+            const originalBytes = (file && typeof file.size === 'number') ? file.size : 0;
+            setUploadMeta({ name: displayName, original: formatBytes(originalBytes), size: '計算中...' });
+
+            try{
+                const compressedBytes = await estimateCompressedSize(dataUrl, file);
+                setUploadMeta({ name: displayName, original: formatBytes(originalBytes), size: formatBytes(compressedBytes) });
+            }catch(error){
+                console.warn('影像壓縮資訊計算失敗', error);
+                setUploadMeta({ name: displayName, original: formatBytes(originalBytes), size: '無法估算' });
+            }
+        };
+        reader.onerror = function(){
+            const displayName = file.name || '未命名檔案';
+            const originalBytes = (file && typeof file.size === 'number') ? file.size : 0;
+            setUploadMeta({ name: displayName, original: formatBytes(originalBytes), size: '讀取失敗' });
+        };
+        reader.readAsDataURL(file);
+    }else{
+        uploadedImage = null;
+        document.getElementById('previewSection').classList.remove('show');
+        setUploadMeta({ name: '尚未選取', original: '-', size: '-' });
+        updateAnalysisDuration('');
+        updateAnalyzeButton();
+    }
+});
+
+/* -------------------- 新增檢查類型（影像→檢查表） -------------------- */
+document.addEventListener('DOMContentLoaded', function(){
+    loadInspectionTypes();
+    checklistProgress.input = document.getElementById('checklistName');
+    setUploadButtonState(false);
+    uploadMetaElements.name = document.getElementById('uploadFileName');
+    uploadMetaElements.original = document.getElementById('uploadOriginalSize');
+    uploadMetaElements.size = document.getElementById('uploadFileSize');
+    setUploadMeta({ name: '尚未選取', original: '-', size: '-' });
+    updateAnalysisDuration('');
+
+    const apiKeyInput = document.getElementById('apiKey');
+    if(apiKeyInput.value.trim()){ setTimeout(()=>saveApiKey(), 100); }
+
+    document.getElementById('checklistInput').addEventListener('change', async function(e){
+        const file = e.target.files[0];
+        const nameInput = document.getElementById('checklistName');
+        const statusDiv = document.getElementById('checklistStatus');
+        setUploadButtonState(true, '準備模型請求...');
+
+        if(!file){ resetChecklistProgress(false); setUploadButtonState(false); return; }
+        if(checklistProvider==='cloud' && !apiKey){
+            showChecklistStatus('❌ 請先設定API密鑰', 'error'); resetChecklistProgress(false); setUploadButtonState(false); return;
+        }
+
+        const checklistName = nameInput.value.trim() || '自訂檢查項目';
+        const providerLabel = checklistProvider==='local' ? ' Ollama 本機模型' : 'Claude 雲端';
+
+        statusDiv.style.color='white';
+        statusDiv.textContent='🔄 正在解析檢查表...';
+
+        showChecklistSpinner();
+        beginChecklistProgress('📁 讀取檔案...', 10);
+
+        try{
+            const reader = new FileReader();
+            reader.onload = async function(ev){
+                try{
+                    const base64Data = ev.target.result.split(',')[1];
+                    const imageHeader = ev.target.result.split(',')[0];
+                    let mediaType = 'image/jpeg';
+                    if(imageHeader.includes('png')) mediaType='image/png';
+                    else if(imageHeader.includes('gif')) mediaType='image/gif';
+                    else if(imageHeader.includes('webp')) mediaType='image/webp';
+
+                    updateChecklistProgress('🧮 準備模型請求...', 25);
+
+                    const payload = { provider: checklistProvider, imageData:{ base64Data, mediaType }, checklistName };
+                    if(checklistProvider==='cloud'){ payload.apiKey = apiKey; }
+                    else if(checklistProvider==='local'){ payload.localModel = 'qwen2.5vl:3b'; }
+
+                    updateChecklistProgress(`🚀 傳送至${providerLabel}...`, 55);
+                    const response = await fetch('/api/parse-checklist', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+
+                    let result;
+                    try{ result = await response.json(); }catch(parseErr){ throw new Error('伺服器回傳格式無法解析'); }
+                    if(!response.ok || result.error){
+                        const errDetail = result && result.error ? result.error : `伺服器錯誤 (${response.status})`;
+                        const extraDetail = result && (result.details || result.raw);
+                        if(extraDetail){
+                            const detailText = typeof extraDetail==='string' ? extraDetail : JSON.stringify(extraDetail);
+                            throw new Error(`${errDetail}：${detailText}`);
+                        }
+                        throw new Error(errDetail);
+                    }
+
+                    updateChecklistProgress('🧠 解析模型回應...', 75);
+
+                    const parsedData = result.checklist || null;
+                    if(!parsedData || !parsedData.items){ throw new Error('未取得有效的檢查類型資料'); }
+
+                    const newTypeId = 'custom_'+Date.now();
+                    inspectionTypesData.inspectionTypes[newTypeId] = {
+                        name: parsedData.name,
+                        description: parsedData.description,
+                        createdDate: new Date().toISOString().split('T')[0],
+                        items: parsedData.items
+                    };
+
+                    updateChecklistProgress('💾 儲存檢查類型...', 90);
+                    await fetch('/api/inspection-types', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(inspectionTypesData) });
+
+                    renderTypeButtons(); switchInspectionType(newTypeId);
+
+                    const providerLabelSuccess = checklistProvider==='local' ? ' Ollama 本機模型' : 'Claude 雲端';
+                    showChecklistStatus(`✅ 使用${providerLabelSuccess}成功新增「${parsedData.name}」檢查類型，包含 ${parsedData.items.length} 個檢查項目，欠缺項目可手動新增。`, 'success');
+                    nameInput.value=''; checklistProgress.originalValue='';
+                    completeChecklistProgress('✅ 檢查類型新增完成');
+                    setUploadButtonState(false);
+
+                    hideChecklistSpinner();
+                }catch(innerError){
+                    console.error('解析檢查表錯誤:', innerError);
+                    showChecklistStatus(`❌ 解析失敗: ${innerError.message}`, 'error');
+                    failChecklistProgress(`❌ ${innerError.message}`);
+                    setUploadButtonState(false);
+                    hideChecklistSpinner();
+                }
+            };
+            reader.onerror = function(event){
+                const message = event?.target?.error?.message || '讀取檔案時發生錯誤';
+                showChecklistStatus(`❌ 讀取檔案失敗: ${message}`, 'error');
+                failChecklistProgress(`❌ 讀取檔案失敗`);
+                setUploadButtonState(false);
+                hideChecklistSpinner();
+            };
+            reader.readAsDataURL(file);
+        }catch(error){
+            console.error('解析檢查表錯誤:', error);
+            showChecklistStatus(`❌ 解析失敗: ${error.message}`, 'error');
+            failChecklistProgress(`❌ ${error.message}`);
+            setUploadButtonState(false);
+            hideChecklistSpinner();
+        }
+    });
+
+    updateProviderButtonsState();
+    if(apiKey){ selectChecklistProvider('cloud'); selectAnalysisProvider('cloud'); } else { selectChecklistProvider('local'); selectAnalysisProvider('local'); }
+});
+function showChecklistStatus(message, type){
+    const statusDiv = document.getElementById('checklistStatus');
+    statusDiv.textContent = message;
+    statusDiv.style.color = type==='success' ? '#ff9800' : type==='error' ? '#dc3545' : 'white';
+}
+
+/* -------------------- 刪除/編輯檢查類型 -------------------- */
+async function deleteInspectionType(typeId){
+    const type = inspectionTypesData.inspectionTypes[typeId];
+    if(!confirm(`確定要刪除「${type.name}」檢查類型嗎？此操作無法復原。`)){ return; }
+    try{
+        const response = await fetch(`/api/inspection-types/${typeId}`, { method:'DELETE' });
+        const result = await response.json();
+        if(result.success){
+            delete inspectionTypesData.inspectionTypes[typeId];
+            if(currentInspectionType===typeId){ switchInspectionType('rebar'); }
+            renderTypeButtons(); alert('✅ 檢查類型已刪除');
+        }else{ alert('❌ 刪除失敗: '+result.error); }
+    }catch(e){ console.error('刪除檢查類型錯誤:', e); alert('❌ 刪除失敗: '+e.message); }
+}
+
+let editingTypeId = null; let editingItems = [];
+function openEditModal(typeId){
+    editingTypeId = typeId; const type = inspectionTypesData.inspectionTypes[typeId];
+    editingItems = JSON.parse(JSON.stringify(type.items||[]));
+    document.getElementById('editModalTitle').textContent = `編輯「${type.name}」檢查項目`;
+    renderEditItems(); document.getElementById('editModal').style.display='block';
+}
+function renderEditItems(){
+    const container = document.getElementById('editItemsContainer'); container.innerHTML='';
+    editingItems.forEach((item, idx)=>{
+        const div = document.createElement('div'); div.className='edit-item';
+        div.innerHTML = `
+            <div class="edit-item-header">
+                <strong>檢查項目 ${idx+1}</strong>
+                <button class="action-btn delete-btn" onclick="removeEditItem(${idx})" title="刪除此項目">🗑️</button>
+            </div>
+            <input type="text" placeholder="項目名稱" value="${item.name||''}" onchange="updateEditItem(${idx},'name',this.value)">
+            <input type="text" placeholder="圖標 (例如: 🔧)" value="${item.icon||'🔧'}" onchange="updateEditItem(${idx},'icon',this.value)">
+            <textarea placeholder="檢查標準" onchange="updateEditItem(${idx},'standard',this.value)">${item.standard||''}</textarea>
+        `;
+        container.appendChild(div);
+    });
+}
+function addNewItem(){ editingItems.push({ name:'', icon:'🔧', standard:'' }); renderEditItems(); }
+function updateEditItem(index, field, value){ editingItems[index][field]=value; }
+function removeEditItem(index){ if(confirm('確定要刪除這個檢查項目嗎？')){ editingItems.splice(index,1); renderEditItems(); } }
+async function saveEditedItems(){
+    for(let i=0;i<editingItems.length;i++){
+        const item = editingItems[i];
+        if(!item.name.trim() || !item.standard.trim()){ alert(`請填寫完整第 ${i+1} 個檢查項目的名稱和標準`); return; }
+    }
+    try{
+        inspectionTypesData.inspectionTypes[editingTypeId].items = editingItems;
+        const response = await fetch('/api/inspection-types',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(inspectionTypesData) });
+        const result = await response.json();
+        if(result.success){
+            if(currentInspectionType===editingTypeId){ loadInspectionItems(editingTypeId); }
+            closeEditModal(); alert('✅ 檢查項目已更新');
+        }else{ alert('❌ 儲存失敗: '+result.error); }
+    }catch(e){ console.error('儲存編輯項目錯誤:', e); alert('❌ 儲存失敗: '+e.message); }
+}
+function closeEditModal(){ document.getElementById('editModal').style.display='none'; editingTypeId=null; editingItems=[]; }
+document.getElementById('editModal').addEventListener('click', function(e){ if(e.target===this){ closeEditModal(); } });
+
+/* -------------------- AI分析主流程 -------------------- */
+async function analyzeImageWithAI(){
+    if(!uploadedImage){ alert('請先上傳照片'); return; }
+    const providerUsed = analysisProvider;
+    if(providerUsed==='cloud' && !apiKey){ alert('請先設定API密鑰'); return; }
+
+    const analysisStart = Date.now();
+    const loading = document.getElementById('loading');
+    const resultSection = document.getElementById('resultSection');
+    const resultContent = document.getElementById('resultContent');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+
+    loading.style.display='block'; resultSection.style.display='none';
+    analyzeBtn.disabled=true;
+    const loadingMessage = providerUsed==='cloud' ? '正在解析檢查表' : '本地模型運行中';
+    analyzeBtn.textContent = providerUsed==='cloud' ? '雲端 Claude.ai 分析中...' : '本機 Ollama  分析中...';
+    startLoadingTextAnimation(loadingMessage);
+    updateAnalysisDuration('計算中...');
+
+    try{
+        const base64Data = uploadedImage.split(',')[1];
+        const imageHeader = uploadedImage.split(',')[0];
+        let mediaType='image/jpeg';
+        if(imageHeader.includes('png')) mediaType='image/png';
+        else if(imageHeader.includes('gif')) mediaType='image/gif';
+        else if(imageHeader.includes('webp')) mediaType='image/webp';
+
+        const currentType = inspectionTypesData.inspectionTypes[currentInspectionType];
+        let checklistText = `【檢查項目及標準】\n`;
+        (currentType.items||[]).forEach((item, idx)=>{ checklistText += `${idx+1}. ${item.name}：${item.standard}\n`; });
+
+        const promptResponse = await fetch('/api/prompt',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+                provider: providerUsed,
+                typeName: currentType?.name || '施工品質檢查',
+                checklistText
+            })
+        });
+        const promptData = await promptResponse.json();
+        if(!promptResponse.ok || !promptData.prompt){
+            throw new Error(promptData.error || '無法取得提示詞');
+        }
+        const analysisPrompt = promptData.prompt;
+
+        let analysisResultText = '';
+
+        if(providerUsed==='cloud'){
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST','/api/anthropic',true);
+            xhr.setRequestHeader('Content-Type','application/json');
+            const response = await new Promise((resolve,reject)=>{
+                xhr.onreadystatechange = function(){
+                    if(xhr.readyState===4){
+                        if(xhr.status>=200 && xhr.status<300){
+                            try{ resolve(JSON.parse(xhr.responseText)); }catch(e){ reject(new Error('JSON解析錯誤: '+e.message)); }
+                        }else{ reject(new Error(`HTTP ${xhr.status}: ${xhr.responseText}`)); }
+                    }
+                };
+                xhr.onerror = ()=>reject(new Error('網路請求失敗'));
+                xhr.ontimeout = ()=>reject(new Error('請求超時'));
+                xhr.timeout = 60000;
+
+                const requestData = {
+                    "model": "claude-3-7-sonnet-20250219",
+                    "max_tokens": 2000,
+                    "messages": [
+                        { "role":"user","content":[ { "type":"text","text": analysisPrompt }, { "type":"image","source":{ "type":"base64","media_type":mediaType,"data":base64Data } } ] }
+                    ]
+                };
+                const proxyData = { apiKey: apiKey, requestData };
+                xhr.send(JSON.stringify(proxyData));
+            });
+            if(response.error){ throw new Error(`API錯誤: ${response.error.message || JSON.stringify(response.error)}`); }
+            if(!response.content || !response.content[0] || !response.content[0].text){ throw new Error('API回應格式異常: '+JSON.stringify(response)); }
+            analysisResultText = response.content[0].text;
+        }else{
+            const localResponse = await fetch('/api/ollama',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt: analysisPrompt, imageData:{ base64Data, mediaType }, inspectionType: currentType.name }) });
+            const localData = await localResponse.json();
+            if(!localResponse.ok || localData.error){ throw new Error(localData.error || '本地模型回應錯誤'); }
+            analysisResultText = localData.content && localData.content[0] ? localData.content[0].text : '';
+            if(!analysisResultText){ throw new Error('本地模型未返回有效內容'); }
+        }
+
+        lastAnalysisProvider = providerUsed;
+        displayAIResult(analysisResultText);
+        updateAnalysisDuration(Date.now() - analysisStart);
+    }catch(error){
+        console.error('AI分析錯誤:', error);
+        updateAnalysisDuration(Date.now() - analysisStart);
+        const suggestions = providerUsed==='local'
+            ? ['確認已啟動 Ollama（http://127.0.0.1:11434）','執行 `ollama pull qwen2.5vl:7b`','首次 `ollama run qwen2.5vl:7b`','或切回雲端模式']
+            : ['檢查 API Key（sk-ant-api03- 開頭）','稍後重試（可能配額/頻率）','改用較小圖片或穩定網路'];
+        document.getElementById('resultContent').innerHTML = `
+            <div style="color:#dc3545;">
+                <strong>❌ 分析失敗</strong><br>
+                <strong>錯誤：</strong>${error.message||'發生未知錯誤'}<br><br>
+                <strong>建議：</strong>
+                <ul style="margin-left:20px;margin-top:10px;">${suggestions.map(s=>`<li>${s}</li>`).join('')}</ul>
+            </div>`;
+        document.getElementById('resultSection').style.display='block';
+    }finally{
+        document.getElementById('loading').style.display='none';
+        stopLoadingTextAnimation(); updateAnalyzeButton();
+    }
+}
+
+/* -------------------- 解析並呈現結果（確保主要項目不空白＋全繁體） -------------------- */
+function displayAIResult(rawText){
+    // 本地模型轉為繁體，雲端結果則維持原樣
+    const providerForResult = lastAnalysisProvider || analysisProvider;
+    const analysisText = convertAIText(rawText || '');
+    const normalizedText = analysisText.replace(/\r\n?/g,'\n');
+    const escapeRegExp = str=> String(str||'').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const sectionConfigs = [
+        { key:'main', label:'主要檢查項目', synonyms:['主要檢查項目','檢查重點'], icon:'🎯', theme:'analysis-primary' },
+        { key:'photo', label:'照片內容分析', synonyms:['照片內容分析','現況觀察','照片描述'], icon:'📸', theme:'analysis-primary' },
+        { key:'standard', label:'標準對照檢查', synonyms:['標準對照檢查','對照檢核'], icon:'📏', theme:'analysis-primary' },
+        { key:'defects', label:'發現的缺失', synonyms:['發現的缺失','缺失項目'], icon:'⚠️', theme:'analysis-warning' },
+        { key:'suggestions', label:'改善建議', synonyms:['改善建議','處置建議'], icon:'💡', theme:'analysis-success' },
+        { key:'assessment', label:'整體評估', synonyms:['整體評估','結論'], icon:'📈', theme:'analysis-accent' }
+    ];
+    const labelMap = {};
+    sectionConfigs.forEach(cfg=>{
+        cfg.synonyms.forEach(name=>{
+            labelMap[name] = cfg.key;
+        });
+    });
+    const headingPattern = new RegExp(`(?:\\*\\*)?(${Object.keys(labelMap).map(escapeRegExp).join('|')})(?:[：:])(?:\\*\\*)?\\s*`, 'g');
+    const headingMatches = [];
+    let match;
+    while((match = headingPattern.exec(normalizedText)) !== null){
+        headingMatches.push({
+            key: labelMap[match[1]],
+            start: match.index,
+            contentStart: headingPattern.lastIndex
+        });
+    }
+    const sectionsByKey = {};
+    sectionConfigs.forEach(cfg=>{ sectionsByKey[cfg.key]=''; });
+    for(let i=0;i<headingMatches.length;i++){
+        const current = headingMatches[i];
+        if(!current.key) continue;
+        const next = headingMatches[i+1];
+        const rawSection = normalizedText.slice(current.contentStart, next ? next.start : normalizedText.length).trim();
+        if(rawSection){
+            sectionsByKey[current.key] = rawSection;
+        }
+    }
+
+    const mainItem          = sectionsByKey.main || '';
+    const photoAnalysis     = sectionsByKey.photo || '';
+    const standardCheck     = sectionsByKey.standard || '';
+    const defects           = sectionsByKey.defects || '';
+    const suggestions       = sectionsByKey.suggestions || '';
+    const overallAssessment = sectionsByKey.assessment || '';
+
+    const riskScore = (()=> {
+        const s = (defects + overallAssessment).toLowerCase();
+        let score = 1;
+        if(/倒塌|嚴重|高風險|高危|重大|危及|結構/.test(s)) score = 3;
+        else if(/中度|需盡速|明顯|不安全|風險/.test(s)) score = 2;
+        return score;
+    })();
+
+    const riskPill = riskScore===3 ? `<span class="pill pill-high">高風險</span>`
+                     : riskScore===2 ? `<span class="pill pill-med">中風險</span>`
+                     : `<span class="pill pill-low">低風險</span>`;
+
+    document.querySelectorAll('.inspection-item').forEach(el=>{
+        el.classList.remove('selected','defect');
+        const name = el.dataset.item || '';
+        const mentionedByMain = name && mainItem && mainItem.includes(name);
+        if(!mentionedByMain){
+            return;
+        }
+        el.classList.add('selected');
+    });
+ 
+    const quickSummaryHTML = `
+	
+        <div class="mini-grid">
+            
+            <div class="mini-card"><strong>風險等級</strong><br>${riskPill}</div>
+        </div>`;
+     
+    const blocks = [];
+    const push = (icon, title, content, theme='analysis-primary', collapsible=true, isHtml=false)=>{
+        if(!content || !String(content).trim()) return;
+        const id = 'sec_'+title.replace(/\s/g,'')+'_'+Math.random().toString(36).slice(2,7);
+        const processedContent = isHtml ? content : convertAIText(content).replace(/\n/g,'<br>');
+        const textClass = isHtml ? 'analysis-text analysis-html' : 'analysis-text';
+        blocks.push(`
+            <li class="analysis-item ${theme}" id="${id}">
+                <div class="analysis-icon">${icon}</div>
+                <div class="analysis-content">
+                    <div class="analysis-title-row">
+                        <div class="analysis-title">${title}</div>
+                        ${collapsible ? `<button class="collapse" onclick="toggleDetail('${id}')"><span class="collapse-icon">▾</span> 展開/收合</button>` : ''}
+                    </div>
+                    <div class="detail-block">
+                        <div class="${textClass}">${processedContent}</div>
+                    </div>
+                </div>
+            </li>`);
+    };
+
+    push('📸','照片內容分析', sanitizeHTML(photoAnalysis));
+    push('🎯','主要檢查項目', sanitizeHTML(mainItem));
+    push('📏','標準對照檢查', sanitizeHTML(standardCheck));
+    push('⚠️','發現的缺失', sanitizeHTML(defects), 'analysis-warning');
+    push('💡','改善建議', sanitizeHTML(suggestions), 'analysis-success');
+    push('📈','整體評估', sanitizeHTML(overallAssessment), 'analysis-accent');
+
+    document.getElementById('resultContent').innerHTML = `
+        ${quickSummaryHTML}
+        <ul class="analysis-list">${blocks.join('')}</ul>
+        <div style="background:#f0f8ff; padding:12px; border-radius:8px; border-left:4px solid #2196f3; font-size:.9rem; margin-top:10px;">
+            <strong>🤖 說明：</strong>${providerForResult==='local' ? '本結果由本機 Ollama · Qwen2.5-VL 產出；模型屬免費方案、精度相對較低，建議搭配現場專業判斷使用。' : '本結果由 Claude AI（商用付費方案）依相關工程規範與準則進行嚴謹檢核後生成。即便模型表現優異，仍建議結合同場專業檢核再行採信。'}
+        </div>`;
+    document.getElementById('resultSection').style.display='block';
+    updateInspectionPanelState(true);
+}
+function toggleDetail(id){
+    const li = document.getElementById(id); if(!li) return;
+    li.classList.toggle('collapsed');
+    const block = li.querySelector('.detail-block');
+    if(block){ block.style.display = (block.style.display==='none') ? '' : 'none'; }
+}
+
+/* -------------------- 載入時初始化 -------------------- */
+window.addEventListener('load', function(){
+    if(document.getElementById('apiKey').value.startsWith('sk-ant-api03-')){
+        apiKey = document.getElementById('apiKey').value;
+        showApiStatus('✅ API密鑰已自動載入，可以開始使用AI分析功能', 'success');
+    }
+    updateAnalyzeButton();
+});
+</script>
+</body>
+</html>
+
+
+
+
+
+
