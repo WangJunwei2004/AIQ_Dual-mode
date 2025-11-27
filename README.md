@@ -177,7 +177,9 @@ AIquality_Dual-mode/
 ├── opencc.data.js              # opencc-js 是業界最完整的繁簡轉換字典
 ├── package.json                # 專案依賴
 ├── package-lock.json           # 專案鎖定依賴
-├── [prompts]                   # 雲端與本地端提示詞文字檔
+├── [prompts]                   # 雲端與本地端提示詞資料夾
+    -cloud_analysis_prompt.txt  # 雲端提示詞
+    -local_analysis_prompt.txt  # 本地端提示詞
 └── README.md                   # 專案說明文件
 ```
 ## 🏗️ 系統架構層次
@@ -456,6 +458,7 @@ Qwen使阿里巴巴的大語言開源模型，輸出格式常會有繁簡體的�
 - 若配備高效能顯示卡，則可選用更高階的 **Qwen2.5-VL:32B** 版本以提升精度。
 
 ---
+
 
 
 
