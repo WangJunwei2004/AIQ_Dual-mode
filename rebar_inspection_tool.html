@@ -401,6 +401,8 @@ let inspectionTypesData = null;
 let analysisProvider = 'cloud';
 let lastAnalysisProvider = analysisProvider;
 let checklistProvider = 'cloud';
+let localModelLabel = 'Qwen2.5-VL';
+let checklistModelLabel = 'Qwen2.5-VL';
 const uploadMetaElements = { name: null, original: null, size: null };
 const checklistProgress = { input: null, originalValue: '', active: false, timer: null };
 let loadingTextTimer = null;
@@ -462,6 +464,22 @@ function showChecklistSpinner() {
 function hideChecklistSpinner() {
   const s = document.getElementById('checklistSpinner');
   if (s) s.style.display = 'none';
+}
+
+async function loadModelConfig(){
+    try{
+        const res = await fetch('/api/model-config');
+        if(!res.ok) throw new Error('load model config failed');
+        const data = await res.json();
+        if(data && typeof data.localModel === 'string' && data.localModel.trim() !== ''){
+            localModelLabel = data.localModel.trim();
+        }
+        if(data && typeof data.checklistModel === 'string' && data.checklistModel.trim() !== ''){
+            checklistModelLabel = data.checklistModel.trim();
+        }
+    }catch(err){
+        console.warn('model config fallback:', err);
+    }
 }
 
 function triggerChecklistUpload(){
@@ -1276,8 +1294,8 @@ function displayAIResult(rawText){
             </li>`);
     };
 
-    push('📸','照片內容分析', sanitizeHTML(photoAnalysis));
     push('🎯','主要檢查項目', sanitizeHTML(mainItem));
+    push('📸','照片內容分析', sanitizeHTML(photoAnalysis));
     push('📏','標準對照檢查', sanitizeHTML(standardCheck));
     push('⚠️','發現的缺失', sanitizeHTML(defects), 'analysis-warning');
     push('💡','改善建議', sanitizeHTML(suggestions), 'analysis-success');
@@ -1287,7 +1305,7 @@ function displayAIResult(rawText){
         ${quickSummaryHTML}
         <ul class="analysis-list">${blocks.join('')}</ul>
         <div style="background:#f0f8ff; padding:12px; border-radius:8px; border-left:4px solid #2196f3; font-size:.9rem; margin-top:10px;">
-            <strong>🤖 說明：</strong>${providerForResult==='local' ? '本結果由本機 Ollama · Qwen2.5-VL 產出；模型屬免費方案、精度相對較低，建議搭配現場專業判斷使用。' : '本結果由 Claude AI（商用付費方案）依相關工程規範與準則進行嚴謹檢核後生成。即便模型表現優異，仍建議結合同場專業檢核再行採信。'}
+            <strong>🤖 說明：</strong>${providerForResult==='local' ? '本結果由本機 Ollama · '+localModelLabel+' 產出；模型屬免費方案、精度相對較低，建議搭配現場專業判斷使用。' : '本結果由 Claude AI（商用付費方案）依相關工程規範與準則進行嚴謹檢核後生成。即便模型表現優異，仍建議結合同場專業檢核再行採信。'}
         </div>`;
     document.getElementById('resultSection').style.display='block';
     updateInspectionPanelState(true);
@@ -1301,6 +1319,7 @@ function toggleDetail(id){
 
 /* -------------------- 載入時初始化 -------------------- */
 window.addEventListener('load', function(){
+    loadModelConfig();
     if(document.getElementById('apiKey').value.startsWith('sk-ant-api03-')){
         apiKey = document.getElementById('apiKey').value;
         showApiStatus('✅ API密鑰已自動載入，可以開始使用AI分析功能', 'success');
