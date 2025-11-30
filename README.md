@@ -55,6 +55,7 @@
 本地端 AI 模式：
 - [Ollama](https://ollama.com/download)  
 - [Qwen2.5-VL:7B 模型](https://ollama.com/library/qwen2.5vl:7b)
+- [Qwen3-VL:8B 模型](https://ollama.com/library/qwen3-vl:8b)
 
 ---
 
@@ -458,6 +459,7 @@ Qwen使阿里巴巴的大語言開源模型，輸出格式常會有繁簡體的�
 - 若配備高效能顯示卡，則可選用更高階的 **Qwen2.5-VL:32B** 版本以提升精度。
 
 ---
+
 
 
 
